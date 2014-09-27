@@ -1,4 +1,4 @@
 sqliteTFR
 =========
 
-sqlite plugin to read any structured text file
+sqlite plugin module to read any structured text file
