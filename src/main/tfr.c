@@ -172,6 +172,8 @@ typedef     struct   CursorCtrl_ {     // Cursor attribute structure.
 // unsigned char           currBuffer;       // Switch indicating the currect active file buffer.
             char          *fileBuffer0;      // Pointer to an allocated block of character to be scanned for the next row and fields.
 //          char          *fileBuffer1;      // Just an idea! Load the next buffer in the background while to processing the current buffer.
+   unsigned short          hdrSkipped;       // Headers skipped.
+   unsigned short          recSkipped;       // Records skipped.
    unsigned short          currField;        // The current field that is being scanned from the file buffer..
    unsigned char           isEndOfRec;       // The end of record boolean.
    unsigned char           isLeftEncl;       // The left opening enclose found.
@@ -192,13 +194,12 @@ typedef     struct   CursorCtrl_ {     // Cursor attribute structure.
 CursorCtrl; // TODO: Validate string length.
 
 // Type of record skipping.
-#define  TFR_SKIPTYPE_NONE       0
-#define  TFR_SKIPTYPE_HEADER     1
-#define  TFR_SKIPTYPE_RECORD     2
+#define  TFR_SKIP_NONE           0
+#define  TFR_SKIP_HEADER_DATASET 2  // bit 2
+#define  TFR_SKIP_HEADER_PERFILE 6  // bit 3
 //
-#define  TFR_SKIPTYPE_NONE       0
-#define  TFR_SKIPTYPE_DATASET    1
-#define  TFR_SKIPTYPE_PERFILE    2
+#define  TFR_SKIP_RECORD_DATASET 8  // bit 4
+#define  TFR_SKIP_RECORD_PERFILE 24 // bit 5
 
 // Dataset sorted order
 #define  TFR_ORDEREDBY_NONE      0
@@ -436,7 +437,9 @@ void  displayVCursor(  sqlite3_vtab_cursor *pVCursor  )
 }
 
 static
-void  displayRBCFields( RecBufCtrl *pRBC ,const unsigned short size )
+char *substr( const char *src ,const int pos ,const int len );
+static
+void  displayRBCFields( RecBufCtrl *pRBC ,const unsigned short size ,char *recBuffer )
 {
    unsigned short i;
 
@@ -446,11 +449,14 @@ void  displayRBCFields( RecBufCtrl *pRBC ,const unsigned short size )
    fprintf( stderr ,"-- -- --- --- ---------\n");
    for( i = 0 ; i < size ; i++ )
    {
+            char       *txtVal   =  NULL;
    unsigned short       startPos;      // Beginning position in the slab buffer to start reading from.   Max 64K (0 - 65535).
    unsigned short       length;        // The length to read from the starting position.
    unsigned char        orderPosition; // The position of this field for the order of the records in the file/dataset.
-   struct   FieldAttr_ *field;         // Pointer to the field attribute.
-      fprintf( stderr ,"%2d %2d %3d %3d %-16s\n" ,i ,pRBC[i].orderPosition ,pRBC[i].startPos ,pRBC[i].length ,pRBC[i].field->fieldName );
+
+      txtVal = substr( recBuffer ,pRBC[i].startPos ,pRBC[i].length );
+      fprintf( stderr ,"%2d %2d %3d %3d %-16s %s\n" ,i ,pRBC[i].orderPosition ,pRBC[i].startPos ,pRBC[i].length ,pRBC[i].field->fieldName ,txtVal );
+      free(    txtVal );
    }
 }
 
@@ -473,7 +479,7 @@ void  displayCursorCtrl( CursorCtrl *pCursorCtrl )
    if(NULL != pCursorCtrl->fileList) displayFiles( pCursorCtrl->fileList );
 
    fprintf( stderr ,"   rbcCount    = %d\n"               ,pCursorCtrl->rbcCount  );
-   displayRBCFields( pCursorCtrl->recBufferCtrl ,pCursorCtrl->rbcCount  );
+   displayRBCFields( pCursorCtrl->recBufferCtrl ,pCursorCtrl->rbcCount ,pCursorCtrl->recBuffer  );
 }
 
 #endif   // SHOW_VTABDEF
@@ -1011,10 +1017,8 @@ tfrInitDSA( DatasetAttr *dsa ,char *pzStr ,char *pzErrMsg )
 
    dsa->bufferSize   =  TFR_FILEBUFSIZE;
    dsa->characterSet =  TFR_CHARSET_ASCII;
-   dsa->byteOrder    =  TFR_BYTEORDER_BIG;
-   dsa->orderedBy    =  TFR_ORDEREDBY_PERFILE;
-// dsa->recDelimiter = sqlite3_mprintf("\n");
-// dsa->recDelimiterLen = 1;
+   dsa->recDelimiter    =  sqlite3_mprintf("\n");
+   dsa->recDelimiterLen =  1;
 
    do{
       switch ( vTokenID )
@@ -1053,10 +1057,11 @@ tfrInitDSA( DatasetAttr *dsa ,char *pzStr ,char *pzErrMsg )
                         vPos     =  0;
                         vTokenID =  tfrGetTokenID( vzStr+(vTokenPos+vTokenLen) ,&vPos ,&vLen );  // Look ahead one token.
 
+                        dsa->typeToSkip= dsa->typeToSkip | TFR_SKIP_HEADER_DATASET;
                         switch ( vTokenID )
                         {
                            case  TOKEN_PERFILE:
-                                 dsa->typeToSkip= dsa->typeToSkip |(TFR_SKIPTYPE_PERFILE << TFR_SKIPTYPE_HEADER);
+                                 dsa->typeToSkip= dsa->typeToSkip | TFR_SKIP_HEADER_PERFILE;
                            case  TOKEN_DATASET:
                                  vzStr   +=  vTokenPos+vTokenLen; // Look ahead is valid therefore advance it.
                                  vTokenPos = vPos;
@@ -1145,10 +1150,11 @@ tfrInitDSA( DatasetAttr *dsa ,char *pzStr ,char *pzErrMsg )
                         vPos     =  0;
                         vTokenID =  tfrGetTokenID( vzStr+(vTokenPos+vTokenLen) ,&vPos ,&vLen );  // Look ahead one token.
 
+                        dsa->typeToSkip= dsa->typeToSkip | TFR_SKIP_RECORD_DATASET;
                         switch ( vTokenID )
                         {
                            case  TOKEN_PERFILE:
-                                 dsa->typeToSkip= dsa->typeToSkip |(TFR_SKIPTYPE_PERFILE << TFR_SKIPTYPE_RECORD);
+                                 dsa->typeToSkip= dsa->typeToSkip | TFR_SKIP_RECORD_PERFILE;
                            case  TOKEN_DATASET:
                            default:
                                  vzStr   +=  vTokenPos+vTokenLen; // Look ahead is valid therefore advance it.
@@ -2181,12 +2187,18 @@ short parseOutRecord( sqlite3_vtab_cursor *pVTabCur )
    unsigned char  isEOR =  0; // End of Record.
    register
    unsigned char  isEOF =  0; // End of Field.
+   register
    unsigned char  isEOLT=  0; // End of LEFT  enclosure.
+   register
    unsigned char  isEORT=  0; // End of RIGHT enclosure.
    //
+   register
    unsigned char  fldDelLen;  // Field delimiter length.
+   register
    unsigned char  fldDelPos;  // Field current position in.
+   register
    unsigned char  recDelLen;  // Record delimiter length.
+   register
    unsigned char  recDelPos;  // Record delimiter position.
    unsigned char  subDelLen;  // Sub-Delimiter length.
    unsigned char  subDelPos;  // Sub-Delimiter position.
@@ -2235,6 +2247,7 @@ short parseOutRecord( sqlite3_vtab_cursor *pVTabCur )
    fldDelPos= cursorCtrl->fldDelPos;
    subDelPos= cursorCtrl->subDelPos;
    recDelPos= cursorCtrl->recDelPos;
+   DEBUG_APITRACE("Done  intialization ...\n");
 
    // Start scanning byte-by-byte until the end-of-buffer or end-of-record.
    for( i = cursorCtrl->fileBufferPos ; i < cursorCtrl->readBufferSize && !isEOR ; i++ )
@@ -2407,6 +2420,7 @@ int   getNextRecord( sqlite3_vtab_cursor *pVTabCur )
    int   i,rc  = SQLITE_OK;
 
    // Alias them.
+   TfrTable   *tfrTable  = (TfrTable  *)pVTabCur->pVtab;
    TfrCursor  *tfrCursor = (TfrCursor *)pVTabCur;
    CursorCtrl *cursorCtrl=  tfrCursor-> cursorCtrl;
 
@@ -2437,6 +2451,15 @@ int   getNextRecord( sqlite3_vtab_cursor *pVTabCur )
             cursorCtrl->fileBufferPos  =  0;
             cursorCtrl->readBufferSize =  0;
             cursorCtrl->recSize        =  0;
+            // Set the record skipping counters.
+            if(0< tfrTable->dsa->hdrsToSkip
+               &&(cursorCtrl->fileList    == cursorCtrl->currFile       // Very first file.
+               || TFR_SKIP_HEADER_PERFILE ==(tfrTable->dsa->typeToSkip & TFR_SKIP_HEADER_PERFILE))
+            )     cursorCtrl->hdrSkipped  =  tfrTable->dsa->hdrsToSkip;
+            if(0< tfrTable->dsa->recsToSkip
+               &&(cursorCtrl->fileList    == cursorCtrl->currFile       // Very first file.
+               || TFR_SKIP_RECORD_PERFILE ==(tfrTable->dsa->typeToSkip & TFR_SKIP_RECORD_PERFILE))
+            )     cursorCtrl->recSkipped  =  tfrTable->dsa->recsToSkip;
          }
 
          // A file handle is opened and we have read to the end of the file buffer.
@@ -2639,6 +2662,7 @@ int   xConnect( sqlite3 *db ,void *pAux ,int pArgc ,const char * const *pArgv ,s
       tfrTable = sqlite3_malloc(sizeof(TfrTable) );
       if(NULL != tfrTable )
       {
+         memset( tfrTable ,'\0' ,sizeof(TfrTable));   // Initialize the structure to NULL.
          tfrTable->dsa  =  sqlite3_malloc(sizeof(DatasetAttr));
 
          if(NULL == tfrTable->dsa ) (*pzErrMsg) =  sqlite3_mprintf("TFRERR: Allocating memory for DatasetAttr struct!" );
@@ -2803,9 +2827,24 @@ int   xNext(    sqlite3_vtab_cursor *pVTabCur )
    DEBUG_APITRACE("In   xNext() ...\n");
 
    int   rc =  SQLITE_OK;
+   char  skip;
    TfrCursor  *tfrCursor = (TfrCursor *)pVTabCur;
+   CursorCtrl *cursorCtrl=  tfrCursor-> cursorCtrl;
 
+   do{
    rc =  getNextRecord( pVTabCur );
+      skip=(0< cursorCtrl->hdrSkipped || 0< cursorCtrl->recSkipped); // Need one extra iteration to get to the next displayable record.
+      if(0< cursorCtrl->recSkipped  && cursorCtrl->hdrSkipped ==0 )  // Skip records ONLY after headers are skipped.
+            cursorCtrl->recSkipped--;
+      if(0< cursorCtrl->hdrSkipped)
+      {     cursorCtrl->hdrSkipped--;
+         if(0< cursorCtrl->hdrSkipped) cursorCtrl->rowNumber--;
+         if(0==cursorCtrl->hdrSkipped) cursorCtrl->rowNumber--;      // To account for the extra skip iteration.
+      }
+   }  while(NULL != cursorCtrl->currFile                             // Not end of dataset files.
+      &&(  (0< cursorCtrl->hdrSkipped || 0< cursorCtrl->recSkipped)  // Still have stuff to skip.
+         || 1==skip)                                                 // One extra iteration to do.
+      );
 
    #ifdef   DEBUG_MODE
    doXColumn = 1;
