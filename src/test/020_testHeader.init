@@ -1,0 +1,629 @@
+.explain    OFF
+.header     ON
+.mode       column
+.nullvalue "(null)"
+.separator " | "
+
+.print  'Loading external TFR module ...'
+.load    tfr.dll
+
+.print
+.print  'Testing valid header spec syntax parsing ...'
+
+.print
+.print  'Field termination ...'
+CREATE   VIRTUAL  TABLE       table01  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY SPACES
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table02  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED     SPACES
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table03  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED     ','
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table04  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY ','
+        ,col1
+);
+
+.print
+.print  'Record termination ...'
+CREATE   VIRTUAL  TABLE       table05  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED     '\n'
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table06  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED  BY '\n'
+        ,col1
+);
+
+.print
+.print  'Data omission ...'
+CREATE   VIRTUAL  TABLE       table07  USING tfr(
+        './path/to/some/file' HEADER   1  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table08  USING tfr(
+        './path/to/some/file' HEADER   1  PERFILE
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table09  USING tfr(
+        './path/to/some/file' HEADER   1
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table10  USING tfr(
+        './path/to/some/file' SKIP     1  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table11  USING tfr(
+        './path/to/some/file' SKIP     1  PERFILE
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table12  USING tfr(
+        './path/to/some/file' SKIP     1
+        ,col1
+);
+
+.print
+.print  'File buffer size ...'
+CREATE   VIRTUAL  TABLE       table13  USING tfr(
+        './path/to/some/file' BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table14  USING tfr(
+        './path/to/some/file' BUFFERSIZE  2  KB
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table15  USING tfr(
+        './path/to/some/file' BUFFERSIZE  3  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table16  USING tfr(
+        './path/to/some/file' BUFFERSIZE  4  MB
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table17  USING tfr(
+        './path/to/some/file' BUFFERSIZE  5  G
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table18  USING tfr(
+        './path/to/some/file' BUFFERSIZE  6  GB
+        ,col1
+);
+
+
+.print
+.print  'Combo termination ...'
+CREATE   VIRTUAL  TABLE       table20  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table21  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED     '\t'
+                              RECORD   TERMINATED     '\n'
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table22  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY SPACES
+                              RECORD   TERMINATED  BY '\n'
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table23  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED     SPACES
+                              RECORD   TERMINATED     '\n'
+        ,col1
+);
+
+.print
+.print  'Combo termination and buffer ...'
+CREATE   VIRTUAL  TABLE       table24  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              BUFFERSIZE  1  GB
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table25  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED     '\t'
+                              BUFFERSIZE  1  GB
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table26  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED  BY '\n'
+                              BUFFERSIZE  1  GB
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table27  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED     '\n'
+                              BUFFERSIZE  1  GB
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table28  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+                              BUFFERSIZE  1  GB
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table29  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED     '\t'
+                              RECORD   TERMINATED     '\n'
+                              BUFFERSIZE  1  GB
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table30  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY SPACES
+                              RECORD   TERMINATED  BY '\n'
+                              BUFFERSIZE  1  GB
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table31  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED     SPACES
+                              RECORD   TERMINATED     '\n'
+                              BUFFERSIZE  1  GB
+        ,col1
+);
+
+
+.print
+.print  'Combo omission  ...'
+CREATE   VIRTUAL  TABLE       table32  USING tfr(
+        './path/to/some/file' HEADER   1  DATASET
+                              SKIP     2  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table33  USING tfr(
+        './path/to/some/file' HEADER   1  DATASET
+                              SKIP     2  
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table34  USING tfr(
+        './path/to/some/file' HEADER   1  
+                              SKIP     2  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table35  USING tfr(
+        './path/to/some/file' HEADER   1  
+                              SKIP     2  
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table36  USING tfr(
+        './path/to/some/file' HEADER   1  PERFILE
+                              SKIP     2  PERFILE
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table37  USING tfr(
+        './path/to/some/file' HEADER   1  
+                              SKIP     2  PERFILE
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table38  USING tfr(
+        './path/to/some/file' HEADER   1  PERFILE
+                              SKIP     2  
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table39  USING tfr(
+        './path/to/some/file' HEADER   1  
+                              SKIP     2  
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table40  USING tfr(
+        './path/to/some/file' HEADER   1  DATASET
+                              SKIP     2  PERFILE
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table41  USING tfr(
+        './path/to/some/file' HEADER   1  
+                              SKIP     2  PERFILE
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table42  USING tfr(
+        './path/to/some/file' HEADER   1  DATASET
+                              SKIP     2  
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table43  USING tfr(
+        './path/to/some/file' HEADER   1  PERFILE
+                              SKIP     2  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table44  USING tfr(
+        './path/to/some/file' HEADER   1  
+                              SKIP     2  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table45  USING tfr(
+        './path/to/some/file' HEADER   1  PERFILE
+                              SKIP     2  
+        ,col1
+);
+
+
+.print
+.print  'Combo omission and buffer ...'
+CREATE   VIRTUAL  TABLE       table46  USING tfr(
+        './path/to/some/file' HEADER   1  DATASET
+                              SKIP     2  DATASET
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table47  USING tfr(
+        './path/to/some/file' HEADER   1  DATASET
+                              SKIP     2  
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table48  USING tfr(
+        './path/to/some/file' HEADER   1  
+                              SKIP     2  DATASET
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table49  USING tfr(
+        './path/to/some/file' HEADER   1  
+                              SKIP     2  
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table50  USING tfr(
+        './path/to/some/file' HEADER   1  PERFILE
+                              SKIP     2  PERFILE
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table51  USING tfr(
+        './path/to/some/file' HEADER   1  
+                              SKIP     2  PERFILE
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table52  USING tfr(
+        './path/to/some/file' HEADER   1  PERFILE
+                              SKIP     2  
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table53  USING tfr(
+        './path/to/some/file' HEADER   1  
+                              SKIP     2  
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table54  USING tfr(
+        './path/to/some/file' HEADER   1  DATASET
+                              SKIP     2  PERFILE
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table55  USING tfr(
+        './path/to/some/file' HEADER   1  
+                              SKIP     2  PERFILE
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table56  USING tfr(
+        './path/to/some/file' HEADER   1  DATASET
+                              SKIP     2  
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table57  USING tfr(
+        './path/to/some/file' HEADER   1  PERFILE
+                              SKIP     2  DATASET
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table58  USING tfr(
+        './path/to/some/file' HEADER   1  
+                              SKIP     2  DATASET
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table59  USING tfr(
+        './path/to/some/file' HEADER   1  PERFILE
+                              SKIP     2  
+                              BUFFERSIZE  1  K
+        ,col1
+);
+
+
+.print
+.print  'Combo termination and omission  ...'
+CREATE   VIRTUAL  TABLE       table60  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              HEADER   1  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table61  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED  BY '\n'
+                              HEADER   1  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table62  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              HEADER   1  DATASET
+                              SKIP     1  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table63  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              HEADER   1  DATASET
+                              SKIP     1  PERFILE
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table64  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              HEADER   1  PERFILE
+                              SKIP     1  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table65  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              HEADER   1  PERFILE
+                              SKIP     1  PERFILE
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table66  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED  BY '\n'
+                              HEADER   1  DATASET
+                              SKIP     1  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table67  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED  BY '\n'
+                              HEADER   1  PERFILE
+                              SKIP     1  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table68  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED  BY '\n'
+                              HEADER   1  DATASET
+                              SKIP     1  PERFILE
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table69  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED  BY '\n'
+                              HEADER   1  PERFILE
+                              SKIP     1  PERFILE
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table70  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+                              HEADER   1  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table71  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+                              SKIP     1  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table72  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+                              HEADER   1  DATASET
+                              SKIP     2  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table73  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+                              HEADER   1  PERFILE
+                              SKIP     2  DATASET
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table74  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+                              HEADER   1  DATASET
+                              SKIP     2  PERFILE
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table75  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+                              HEADER   1  PERFILE
+                              SKIP     2  PERFILE
+        ,col1
+);
+
+
+.print
+.print  'Combo termination and omission and buffer ...'
+CREATE   VIRTUAL  TABLE       table76  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              HEADER   1  DATASET
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table77  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED  BY '\n'
+                              HEADER   1  DATASET
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table78  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              HEADER   1  DATASET
+                              SKIP     1  DATASET
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table79  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              HEADER   1  DATASET
+                              SKIP     1  PERFILE
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table80  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              HEADER   1  PERFILE
+                              SKIP     1  DATASET
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table81  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              HEADER   1  PERFILE
+                              SKIP     1  PERFILE
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table82  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED  BY '\n'
+                              HEADER   1  DATASET
+                              SKIP     1  DATASET
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table83  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED  BY '\n'
+                              HEADER   1  PERFILE
+                              SKIP     1  DATASET
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table84  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED  BY '\n'
+                              HEADER   1  DATASET
+                              SKIP     1  PERFILE
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table85  USING tfr(
+        './path/to/some/file' RECORD   TERMINATED  BY '\n'
+                              HEADER   1  PERFILE
+                              SKIP     1  PERFILE
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table86  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+                              HEADER   1  DATASET
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table87  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+                              SKIP     1  DATASET
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table88  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+                              HEADER   1  DATASET
+                              SKIP     2  DATASET
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table89  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+                              HEADER   1  PERFILE
+                              SKIP     2  DATASET
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table90  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+                              HEADER   1  DATASET
+                              SKIP     2  PERFILE
+                              BUFFERSIZE  1  M
+        ,col1
+);
+
+CREATE   VIRTUAL  TABLE       table91  USING tfr(
+        './path/to/some/file' FIELDS   TERMINATED  BY '\t'
+                              RECORD   TERMINATED  BY '\n'
+                              HEADER   1  PERFILE
+                              SKIP     2  PERFILE
+                              BUFFERSIZE  1  M
+        ,col1
+);
+

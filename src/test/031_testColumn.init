@@ -1,0 +1,91 @@
+.explain    OFF
+.header     ON
+.mode       column
+.nullvalue "(null)"
+.separator " | "
+
+.print  'Loading external TFR module ...'
+.load    tfr.dll
+
+.print
+.print  'Defining lsListing0 table ...'
+.print  'Default field delimiter is white space and recotd delimiter is new line.
+CREATE   VIRTUAL  TABLE    lsListing0  USING    tfr(
+        './data/ls3080*.txt'
+         --
+        ,permission     HIDDEN
+        ,userID         HIDDEN
+        ,userName
+        ,fileSize
+        ,fileMonth
+        ,fileDOM
+        ,fileYearTime
+        ,fileName
+);
+
+.print
+.print  'Test data ...'
+SELECT   ROWID
+        ,FileName_   inputFileName
+        ,FileSize_   inputFileSize
+        ,lsListing0. userName
+        ,lsListing0. fileName
+        ,lsListing0. fileSize
+        ,lsListing0. fileYearTime
+FROM     lsListing0
+;
+
+.print
+
+SELECT   Test
+        ,Expect
+        ,Actual
+        ,CASE
+         WHEN     expect   =  actual   THEN  'OK'  ELSE  'FAILED!'
+         END   AS Result
+FROM(
+         SELECT   *
+         FROM(    SELECT  'Test total counts ...'        test    ,20       expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing0
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test file  counts ...'        test    ,4        expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(DISTINCT FileName_   )  actual   FROM     lsListing0
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test total file size ...'     test    ,23468845 expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   SUM(fileSize               )  actual   FROM     lsListing0
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test 4 way join ...'          test    ,20918622 expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   ls3080100.  fileSize
+                          +ls3080403.  fileSize
+                          +ls3080600.  fileSize
+                          +ls3080701.  fileSize    AS actual
+                  FROM     lsListing0  ls3080100
+                  JOIN     lsListing0  ls3080403   ON ls3080403.userName   =  ls3080100.userName
+                  JOIN     lsListing0  ls3080600   ON ls3080600.userName   =  ls3080403.userName
+                  JOIN     lsListing0  ls3080701   ON ls3080701.userName   =  ls3080600.userName
+                  WHERE    ls3080100.  userName    = 'Dick'
+                  AND      ls3080100.  FileName_   = 'ls3080100.txt'
+                  AND      ls3080403.  FileName_   = 'ls3080403.txt'
+                  AND      ls3080600.  FileName_   = 'ls3080600.txt'
+                  AND      ls3080701.  FileName_   = 'ls3080701.txt'
+         )  AS    actual
+)  AS    testSuite
+;
+

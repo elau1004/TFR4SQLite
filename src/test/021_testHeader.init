@@ -1,0 +1,520 @@
+.explain    OFF
+.header     ON
+.mode       column
+.nullvalue "(null)"
+.separator " | "
+
+.print  'Loading external TFR module ...'
+.load    tfr.dll
+
+.print
+.print  'Defining qqqEOD_0 table ...'
+CREATE   VIRTUAL  TABLE       qqqEOD_0 USING tfr(
+        './data/stockEOD.csv' FIELDS   TERMINATED  BY ','
+        --
+        ,Date        TEXT
+        ,Open        FLOAT
+        ,High        FLOAT
+        ,Low         FLOAT
+        ,Close       FLOAT
+        ,Volume      INT
+        ,AdjClose    FLOAT    HIDDEN
+);
+
+.print
+.print  'Defining qqqEOD_1 table ...'
+CREATE   VIRTUAL  TABLE       qqqEOD_1 USING tfr(
+        './data/stockEOD.csv' FIELDS   TERMINATED  BY ','   HEADER   1  PERFILE
+        --
+        ,Date        TEXT
+        ,Open        FLOAT
+        ,High        FLOAT
+        ,Low         FLOAT
+        ,Close       FLOAT
+        ,Volume      INT
+        ,AdjClose    FLOAT    HIDDEN
+);
+
+.print
+.print  'Defining qqqEOD_2 table ...'
+CREATE   VIRTUAL  TABLE       qqqEOD_2 USING tfr(
+        './data/stockEOD.csv' FIELDS   TERMINATED  BY ','   SKIP     1  PERFILE
+         --
+        ,Date        TEXT
+        ,Open        FLOAT
+        ,High        FLOAT
+        ,Low         FLOAT
+        ,Close       FLOAT
+        ,Volume      INT
+        ,AdjClose    FLOAT    HIDDEN
+);
+
+.print
+.print  'Defining qqqEOD_3 table ...'
+CREATE   VIRTUAL  TABLE       qqqEOD_3 USING tfr(
+        './data/stockEOD.csv' FIELDS   TERMINATED  BY ','   HEADER 1 PERFILE  SKIP 2 PERFILE
+         --
+        ,Date        TEXT
+        ,Open        FLOAT
+        ,High        FLOAT
+        ,Low         FLOAT
+        ,Close       FLOAT
+        ,Volume      INT
+        ,AdjClose    FLOAT    HIDDEN
+);
+
+
+.print
+.print  'Test data ...'
+SELECT   qqqEOD_0. *
+FROM     qqqEOD_0
+LIMIT    11
+;
+
+.print
+.width   32
+
+SELECT   Test
+        ,Expect
+        ,Actual
+        ,CASE
+         WHEN     expect   =  actual   THEN  'OK'  ELSE  'FAILED!'
+         END   AS Result
+FROM(
+         SELECT   *
+         FROM(    SELECT  'Test total counts ...'        test    ,3940     expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     qqqEOD_0
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test file  counts ...'        test    ,1        expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(DISTINCT FileName_   )  actual   FROM     qqqEOD_0
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test un-omit header ...'      test    ,1        expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1) actual
+                  FROM     qqqEOD_0
+                  WHERE    Date  ='Date'
+                  AND      Open  ='Open'
+                  AND      High  ='High'
+                  AND      Low   ='Low'
+                  AND      close ='Close'
+                  AND      Volume='Volume'      
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 header ...'       test    ,1        expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1) actual
+                  FROM     qqqEOD_1
+                  WHERE   (1=1)
+                  AND      Date     = '2014-10-31'
+                  AND      Open     =  101.68
+                  AND      High     =  101.75
+                  AND      Low      =  101.07
+                  AND      close    =  101.4
+                  AND      Volume   =  54247900
+                  AND      recNum_  =  2
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test skip 1 record ...'       test    ,1        expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1) actual
+                  FROM     qqqEOD_2
+                  WHERE   (1=1)
+                  AND      Date     = '2014-10-31'
+                  AND      Open     =  101.68
+                  AND      High     =  101.75
+                  AND      Low      =  101.07
+                  AND      close    =  101.4
+                  AND      Volume   =  54247900
+                  AND      recNum_  =  2
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test for 1st record ...'      test    ,1        expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1) actual
+                  FROM     qqqEOD_1
+                  WHERE   (1=1)
+                  AND      Date     = '2014-10-31'
+                  AND      Open     =  101.68
+                  AND      High     =  101.75
+                  AND      Low      =  101.07
+                  AND      close    =  101.4
+                  AND      Volume   =  54247900
+                  AND      recNum_  =  2
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test Omit Header & Record ..' test    ,1        expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1) actual
+                  FROM     qqqEOD_3
+                  WHERE   (1=1)
+                  AND      Date     = '2014-10-29'
+                  AND      Open     =  99.85
+                  AND      High     =  100.12
+                  AND      Low      =  99.1
+                  AND      close    =  99.81
+                  AND      Volume   =  40528500
+                  AND      recNum_  =  4
+         )  AS    actual
+
+)  AS    testSuite
+;
+
+.print
+.width   7  8
+.print  'Defining lsListing0 table ...'
+CREATE   VIRTUAL  TABLE    lsListing0  USING    tfr(
+        './data/ls3080*.txt'
+         --
+        ,permission     HIDDEN
+        ,userID         HIDDEN
+        ,userName
+        ,fileSize
+        ,fileMonth
+        ,fileDOM
+        ,fileYearTime
+        ,fileName
+);
+
+.print  'Defining lsListing1 table ...'
+CREATE   VIRTUAL  TABLE    lsListing1  USING    tfr(
+        './data/ls3080*.txt'           HEADER   1 DATASET
+         --
+        ,permission     HIDDEN
+        ,userID         HIDDEN
+        ,userName
+        ,fileSize
+        ,fileMonth
+        ,fileDOM
+        ,fileYearTime
+        ,fileName
+);
+
+.print  'Defining lsListing2 table ...'
+CREATE   VIRTUAL  TABLE    lsListing2  USING    tfr(
+        './data/ls3080*.txt'           HEADER   1 PERFILE
+         --
+        ,permission     HIDDEN
+        ,userID         HIDDEN
+        ,userName
+        ,fileSize
+        ,fileMonth
+        ,fileDOM
+        ,fileYearTime
+        ,fileName
+);
+
+.print  'Defining lsListing3 table ...'
+CREATE   VIRTUAL  TABLE    lsListing3  USING    tfr(
+        './data/ls3080*.txt'           SKIP     1 DATASET
+         --
+        ,permission     HIDDEN
+        ,userID         HIDDEN
+        ,userName
+        ,fileSize
+        ,fileMonth
+        ,fileDOM
+        ,fileYearTime
+        ,fileName
+);
+
+.print  'Defining lsListing4 table ...'
+CREATE   VIRTUAL  TABLE    lsListing4  USING    tfr(
+        './data/ls3080*.txt'           SKIP     1 PERFILE
+         --
+        ,permission     HIDDEN
+        ,userID         HIDDEN
+        ,userName
+        ,fileSize
+        ,fileMonth
+        ,fileDOM
+        ,fileYearTime
+        ,fileName
+);
+
+.print  'Defining lsListing5 table ...'
+CREATE   VIRTUAL  TABLE    lsListing5  USING    tfr(
+        './data/ls3080*.txt'           HEADER   1 DATASET   SKIP  2  DATASET
+         --
+        ,permission     HIDDEN
+        ,userID         HIDDEN
+        ,userName
+        ,fileSize
+        ,fileMonth
+        ,fileDOM
+        ,fileYearTime
+        ,fileName
+);
+
+.print  'Defining lsListing6 table ...'
+CREATE   VIRTUAL  TABLE    lsListing6  USING    tfr(
+        './data/ls3080*.txt'           HEADER   2 DATASET   SKIP  1  DATASET
+         --
+        ,permission     HIDDEN
+        ,userID         HIDDEN
+        ,userName
+        ,fileSize
+        ,fileMonth
+        ,fileDOM
+        ,fileYearTime
+        ,fileName
+);
+
+
+.print  'Defining lsListing7 table ...'
+CREATE   VIRTUAL  TABLE    lsListing7  USING    tfr(
+        './data/ls3080*.txt'           HEADER   1 PERFILE   SKIP  2  PERFILE
+         --
+        ,permission     HIDDEN
+        ,userID         HIDDEN
+        ,userName
+        ,fileSize
+        ,fileMonth
+        ,fileDOM
+        ,fileYearTime
+        ,fileName
+);
+
+.print  'Defining lsListing8 table ...'
+CREATE   VIRTUAL  TABLE    lsListing8  USING    tfr(
+        './data/ls3080*.txt'           HEADER   2 PERFILE   SKIP  1  PERFILE
+         --
+        ,permission     HIDDEN
+        ,userID         HIDDEN
+        ,userName
+        ,fileSize
+        ,fileMonth
+        ,fileDOM
+        ,fileYearTime
+        ,fileName
+);
+
+.print  'Defining lsListing9 table ...'
+CREATE   VIRTUAL  TABLE    lsListing9  USING    tfr(
+        './data/ls3080*.txt'           HEADER   1 PERFILE   SKIP  2  DATASET
+         --
+        ,permission     HIDDEN
+        ,userID         HIDDEN
+        ,userName
+        ,fileSize
+        ,fileMonth
+        ,fileDOM
+        ,fileYearTime
+        ,fileName
+);
+
+.print  'Defining lsListing10 table ...'
+CREATE   VIRTUAL  TABLE    lsListing10  USING    tfr(
+        './data/ls3080*.txt'           HEADER   2 PERFILE   SKIP  1  DATASET
+         --
+        ,permission     HIDDEN
+        ,userID         HIDDEN
+        ,userName
+        ,fileSize
+        ,fileMonth
+        ,fileDOM
+        ,fileYearTime
+        ,fileName
+);
+
+
+
+.print
+.print  'Test data ...'
+SELECT   recNum_
+        ,lsListing0. *
+FROM     lsListing0
+;
+
+.print
+.width   42
+
+SELECT   Test
+        ,Expect
+        ,Actual
+        ,CASE
+         WHEN     expect   =  actual   THEN  'OK'  ELSE  'FAILED!'
+         END   AS Result
+FROM(
+         SELECT   *
+         FROM(    SELECT  'Test total counts ...'        test    ,20       expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing0
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 header/dataset ...'       ,19       expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing1
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 header/dataset ...'       ,3        expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing1  WHERE userName =  'Edward'
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 header/file ...'  expect  ,16       expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing2
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 header/file ...'  expect   ,0        expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing2  WHERE userName =  'Edward'
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 record/dataset ...'       ,19       expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing3
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 record/dataset ...'       ,3        expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing3  WHERE userName =  'Edward'
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 record/file ...'  expect  ,16       expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing4
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 record/file ...'  expect   ,0       expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing4  WHERE userName =  'Edward'
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 Hdr 2 Rec per Dataset ...' ,17      expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing5
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 Hdr 2 Rec per Dataset ...' ,9       expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing5
+                  WHERE    userName IN('Edward','Tom','Dick')
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 2 Hdr 1 Rec per Dataset ...' ,17      expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing6
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 2 Hdr 1 Rec per Dataset ...' ,9       expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing6
+                  WHERE    userName IN('Edward','Tom','Dick')
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 Hdr 2 Rec per File ...'    ,8       expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing7
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 Hdr 2 Rec per File ...'    ,0       expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing7
+                  WHERE    userName IN('Edward','Tom','Dick')
+         )  AS    actual
+
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 2 Hdr 1 Rec per File ...'    ,8       expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing8
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 2 Hdr 1 Rec per File ...'    ,0       expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing8
+                  WHERE    userName IN('Edward','Tom','Dick')
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 1 Hdr/File skip 2 rec/Dataset ...' ,6 expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing9
+                  WHERE    userName IN('Edward','Tom','Dick')
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test omit 2 Hdr/File skip 1 rec/Dataset ...' ,3 expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     lsListing10
+                  WHERE    userName IN('Edward','Tom','Dick')
+         )  AS    actual
+
+)  AS    testSuite
+;

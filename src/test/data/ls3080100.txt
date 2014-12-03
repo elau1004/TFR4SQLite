@@ -1,0 +1,5 @@
+-rw-r--r-- 1	Edward    131214 Oct	31 20:42 tfr.c
+-rw-r--r-- 1	Tom		 105627 Oct	17  2013 shell.c
+-rw-r--r-- 1	Dick  	5076505 Oct	17  2013 sqlite3.c
+-rw-r--r-- 1	Harry	 	 351321 Oct	17  2013 sqlite3.h
+-rw-r--r-- 1	Richard	  26110 Oct	17  2013 sqlite3ext.h-

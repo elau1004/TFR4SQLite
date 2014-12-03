@@ -1,0 +1,74 @@
+.explain    OFF
+.header     ON
+.mode       column
+.nullvalue "(null)"
+.separator " | "
+
+.print  'Loading external TFR module ...'
+.load    tfr.dll
+
+.print
+.print  'Defining poLine0 table ...'
+.print  'Table is defaulted to use * as the field seperator but have 2 other fields use ~ instead ...'
+CREATE   VIRTUAL  TABLE       poLine0  USING tfr(
+        './data/poLine.txt'   FIELDS   TERMINATED  BY '*'
+         --
+        ,PO1Segment           IGNORE
+        ,assignedID           IGNORE
+        ,qtyOrdered           INT
+        ,qtyUOM               TEXT
+        ,unitPrice            FLOAT
+        ,unitPriceCode        IGNORE
+        ,prodIDQualifier1     IGNORE
+        ,buyerProdCode        TEXT
+        ,prodIDQualifier2     IGNORE
+        ,sellerProdCode       TEXT     TERMINATED  BY '~'
+        ,PIDSegment           IGNORE
+        ,itemDescriptionType  IGNORE
+        ,characteristicCode   IGNORE
+        ,agencyQualifierCode  IGNORE
+        ,description          TEXT     TERMINATED  BY '~'
+        ,PO4Segment           IGNORE
+        ,packInCase           INT
+        ,weight               FLOAT
+        ,weightUOM            TEXT     TERMINATED  BY '\n'
+);
+
+.print
+.print  'Test data ...'
+SELECT   ROWID
+        ,FileName_   inputFileName
+        ,qtyOrdered
+        ,qtyUOM
+        ,unitPrice
+        ,buyerProdCode
+        ,sellerProdCode
+        ,description
+        ,weight
+        ,weightUOM
+FROM     poLine0
+;
+
+SELECT   Test
+        ,Expect
+        ,Actual
+        ,CASE
+         WHEN     expect   =  actual   THEN  'OK'  ELSE  'FAILED!'
+         END   AS Result
+FROM(
+         SELECT   *
+         FROM(    SELECT  'Test total counts ...'        test    ,7        expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   COUNT(1)                      actual   FROM     poLine0
+         )  AS    actual
+
+         UNION    ALL
+         SELECT   *
+         FROM(    SELECT  'Test total weights ...'       test    ,2748.96  expect
+         )  AS    expect
+         CROSS
+         JOIN(    SELECT   SUM(  packInCase * weight  )  actual   FROM     poLine0
+         )  AS    actual
+)  AS    testSuite
+;
