@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <glob.h>
 #include <libgen.h>
 #include <limits.h>
 #include <stdio.h>
@@ -13,6 +12,13 @@
 //
 #if   defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
+#endif
+
+// SEE: https://sourceforge.net/p/predef/wiki/Compilers/
+#if (defined __MINGW32__ || defined __MINGW64__)
+#include "glob.h"
+#else
+#include <glob.h> // POSIX
 #endif
 
 

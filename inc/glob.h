@@ -19,6 +19,7 @@ typedef struct {
 } glob_t;
 
 /* Error return values */
+#define GLOB_SUCCESS    0
 #define GLOB_NOSPACE    1   /* malloc/realloc failed */
 #define GLOB_ABORTED    2   /* read error */
 #define GLOB_NOMATCH    3   /* no matches */
