@@ -42,20 +42,79 @@ Next you need to add the following value:
 to your `PATH` environment variable.
 
 Open a new command terminal and check your installation:
-```cmd
-    gcc --version   :: C compiler
-    g++ --version   :: C++ compiler
-    gdb --version   :: Debugger
+```bash
+    gcc --version   # C compiler
+    g++ --version   # C++ compiler
+    gdb --version   # Debugger
 ```
 
+<!--
 We need `glob.h`, which is POSIX, however MinGW is **not** POSIX compliant.  We need to manually copy these files:
 1. https://codebrowser.dev/glibc/glibc/posix/glob.c.html
 2. https://codebrowser.dev/glibc/glibc/posix/glob.h.html
-
+-->
 
 Reference: https://code.visualstudio.com/docs/cpp/config-mingw#_prerequisites
 </details>
 <br>
+
 <details open><summary><strong>VS Code</strong>:</summary>
 Reference: https://code.visualstudio.com/docs/cpp/config-mingw#_prerequisites
 </details>
+<br>
+
+<details open><summary><strong>Git Repository</strong>:</summary>
+
+Clone the [Text File Reader for SQLite](https://github.com/elau1004/TFR4SQLite) with the following command:
+```bash
+    git clone   https://github.com/elau1004/TFR4SQLite.git
+    cd  TFR4SQLite
+```
+</details>
+<br>
+
+<details open><summary><strong>SQLite source code</strong>:</summary>
+
+Download the **amalgamated** version of SQLite that you want work with from [SQLite Download](https://sqlite.org/download.html) into this project repo root directory.
+Unzip the files in amalgamated zip file into their respective sub-directories:
+```bash
+    unzip -l sqlite-amalgamation-3510000.zip
+    unzip -p sqlite-amalgamation-3510000.zip  sqlite-amalgamation-3510000/sqlite3.h     > inc/sqlite3.h
+    unzip -p sqlite-amalgamation-3510000.zip  sqlite-amalgamation-3510000/sqlite3ext.h  > inc/sqlite3ext.h
+    unzip -p sqlite-amalgamation-3510000.zip  sqlite-amalgamation-3510000/sqlite3.c     > src/lib/sqlite3.c
+    unzip -p sqlite-amalgamation-3510000.zip  sqlite-amalgamation-3510000/shell.h       > src/main/sqlite3.h
+```
+or copy them through GUI file manager.
+
+Reference: https://sqlite.org/howtocompile.html#compiling_the_command_line_interface
+</details>
+<br>
+
+<details open><summary><strong>Build the software</strong>:</summary>
+
+Build the SQLite `shell` and the `trf` shared library with the following command:
+```bash
+    # Clean out old artifacts.
+    make    clean
+    
+    # Build the software.
+    make
+    
+    # Enable debugging (optional).
+    make    BUILD_TYPE=debug
+
+    ls -rl  shell  *.dll  *.exe  *.so 
+```
+The compiled artifacts shall be deposited into either `build\release` or `build\debug` sub-directory depending on `make` option.
+Copy the `shell` executable and `tfr` shared library to where ever you like.
+</details>
+<br>
+
+<details open><summary><strong>Run the SQLite shell</strong>:</summary>
+
+Type in the following command to invoke the compiled SQLite `shell`:
+```bash
+    ./build/release/shell
+```
+</details>
+<br>
