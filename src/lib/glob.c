@@ -62,9 +62,11 @@ static int wildmatch(const char *pat, const char *str, int flags)
             ++p; int neg = (*p == '!'); if (neg) ++p;
             int match = 0;
             while (*p && *p != ']') { if (*p == *s) match = 1; ++p; }
-            if (!*p) return 0; ++p;
+            if (!*p) return 0; 
+            ++p;
             if (neg) match = !match;
-            if (!match) return 0; ++s;
+            if (!match) return 0;
+            ++s;
             continue;
         }
         if (*p != *s) return 0;
@@ -116,7 +118,9 @@ static int expand_brace(const char *pat, int flags, PathList *out)
         } else {
             strcpy(alt, p); p = end;
         }
-        char full[MAX_PATH];
+
+        // char full[MAX_PATH]; // 'snprintf' output between 1 and 2302 bytes into a destination of size 260
+        char full[4096];
         snprintf(full, sizeof full, "%s%s%s", prefix, alt, suffix);
         char exp[MAX_PATH];
         if (expand_tilde(full, exp, sizeof exp) != -1)
@@ -142,7 +146,7 @@ static void walk_dir(const char *base, const char *relpat, int flags, int (*errf
     do {
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             if (strcmp(fd.cFileName, ".") && strcmp(fd.cFileName, "..")) {
-                char sub[MAX_PATH];
+                char sub[MAX_PATH+1];
                 snprintf(sub, sizeof sub, "%s\\%s", base, fd.cFileName);
                 walk_dir(sub, relpat, flags, errfunc, results);
             }
@@ -150,7 +154,7 @@ static void walk_dir(const char *base, const char *relpat, int flags, int (*errf
         }
 
         if (wildmatch(relpat, fd.cFileName, flags)) {
-            char full[MAX_PATH];
+            char full[MAX_PATH+1];
             snprintf(full, sizeof full, "%s\\%s", base, fd.cFileName);
             if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && (flags & GLOB_MARK))
                 strcat(full, "\\");

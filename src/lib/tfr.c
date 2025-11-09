@@ -10,15 +10,16 @@
 #include <sys/types.h>
 #include <time.h>
 //
-#if   defined(_WIN32) || defined(_WIN64)
+#if (defined(_WIN32) || defined(_WIN64))
 #include <windows.h>
+//#include <psapi.h>
 #endif
 
 // SEE: https://sourceforge.net/p/predef/wiki/Compilers/
 #if (defined __MINGW32__ || defined __MINGW64__)
 #include "glob.h"
 #else
-#include <glob.h> // POSIX
+#include <glob.h> // Local POSIX
 #endif
 
 
@@ -92,9 +93,9 @@ typedef     struct   FieldAttr_  {     // Field attribute structure.
    unsigned char           blobType;         // Input blob type encoding.
    unsigned char           orderPosition;    // The position of this field for the order of the records in the file/dataset.
    unsigned char           visibility;       // The visibility of this field defined for SQLite3 shadow table.
-   unsigned short          fromPosition;     // The starting positon of the field in the record. Starting from position 1.
+   unsigned short          fromPosition;     // The starting position of the field in the record. Starting from position 1.
    unsigned short          thruPosition;     // The ending position of the field in the record.
-            char          *delimiter;        // The field seperator.
+            char          *delimiter;        // The field separator.
    unsigned char           delimiterLen;     // Delimiter length;
             char          *leftEnclose;      // Left token that starts the enclosure of a string.
    unsigned char           leftEncloseLen;   // Left token length.
@@ -102,7 +103,7 @@ typedef     struct   FieldAttr_  {     // Field attribute structure.
    unsigned char           rightEncloseLen;  // Right token length.
             char          *escString;        // Escape string to interpret the next character literally.
    unsigned char           escStringLen;     // Escape string length.
-            char          *subDelimiter;     // The sub-field seperator.
+            char          *subDelimiter;     // The sub-field separator.
    unsigned char           subDelimiterLen;  // Sub-Delimiter length.
    unsigned char           charEncoding;     // Content encoding.
    //
@@ -130,7 +131,7 @@ typedef     struct   FileAttr_   {     // File attribute structure.
             char           modifiedOnLen;    // Timestamp string length.
            _off_t          fileSize;         // The size of the file.  Used in stat.h.
    unsigned char           fileType;         // The type of file.
-            int            fileHandle;       // File handle asociated with the current opened file.
+            int            fileHandle;       // File handle associated with the current opened file.
            _mode_t         statMode;         // The internal file mode.  Used in stat.h.
    struct   FileAttr_     *next;             // Pointer to the next file attribute.  Sub-directories makes it harder to pre-estimate size.
 }         __attribute__  ((aligned))
@@ -155,7 +156,7 @@ FilterColumn;
 
 typedef     struct   FilterCtrl_ {     // Filter control structure.
    unsigned short          filterCount;      // Count of columns to apply filtering on.
-            FilterColumn  *filterCol;        // Array of columns to  be contrainted on.
+            FilterColumn  *filterCol;        // Array of columns to  be constrained on.
 }         __attribute__  ((aligned))
 FilterCtrl;
 
@@ -172,7 +173,7 @@ typedef     struct   CursorCtrl_ {     // Cursor attribute structure.
    unsigned short          fileCount;        // The count of files to read.
    struct   FileAttr_     *fileList;         // Pointer to start of the file list.
    struct   FileAttr_     *currFile;         // Pointer to the file we are processing. If NULL we have reached the end of the dataset.
-            int            currFileHandle;   // File handle asociated with the current opened file.
+            int            currFileHandle;   // File handle associated with the current opened file.
             size_t         readBufferSize;   // The number of bytes returned from the read() operation to populate the file buffer.
    unsigned int            fieldStartPos;    // Starting position in the buffer for the current field.
    unsigned int            fileBufferPos;    // Position in the buffer to begin the next scan.
@@ -254,7 +255,7 @@ typedef     struct   DatasetAttr_   {  // Dataset attribute structure.  This is 
    unsigned short          recsToSkip;       // Records to skip before the start of data to read.
    unsigned char           orderedBy;        // The records ordered in the dataset.
    unsigned int            bufferSize;       // The size of the input file buffer.
-   unsigned char           characterSet;     // Global character set for the imput files.
+   unsigned char           characterSet;     // Global character set for the input files.
    unsigned char           textEncoding;     // Global text encoding for the input files.
    unsigned char           byteOrder;        // Global byte order for the files.
    unsigned char           doFiltering;      // Enable xBest() and xFilter();
@@ -498,6 +499,40 @@ void  displayCursorCtrl( CursorCtrl *pCursorCtrl )
 //*
 // Helper functions.
 //*
+#ifdef   DEBUG_MODE
+size_t get_current_memory_usage() {
+   #if   defined(_WIN32) || defined(_WIN64)
+      PROCESS_MEMORY_COUNTERS pmc;
+      if(   GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
+            return pmc.WorkingSetSize;  // Current working set size in bytes (similar to RSS)
+      }
+      return 0;  // Error
+
+   #elif defined(__linux__)
+      FILE *file = fopen("/proc/self/status", "r");
+      if(   file == NULL) 
+            return 0;
+
+      char  line[128];
+      size_t mem = 0;
+      while(   fgets(   line  ,sizeof(line) ,file) != NULL) {
+         if(   strncmp( line  ,"VmRSS:"   ,6) == 0) {
+               sscanf(  line+6,"%zu"      ,&mem );
+               break;
+         }
+      }
+      fclose(file);
+      return mem * 1024;  // Convert kB to bytes
+
+   #else  // Fallback for other POSIX systems (e.g., BSD) - uses peak RSS
+      struct rusage usage;
+      if(   getrusage(RUSAGE_SELF, &usage) == 0) {
+            // ru_maxrss: peak RSS. Units vary; assuming bytes for BSD-like, adjust if needed.
+            return   (size_t)usage.ru_maxrss;
+      }
+      return 0;  // Error
+   #endif
+}
 
 static
 void  showMemoryUsed()
@@ -508,9 +543,10 @@ void  showMemoryUsed()
    MEMORYSTATUSEX             memStatEx;
    memStatEx.dwLength=sizeof( memStatEx );
    GlobalMemoryStatusEx(     &memStatEx );
-   fprintf( stderr ,"Windows Memory free:\t%lld\t%2d%%\n\n" ,memStatEx.ullAvailPhys ,100-memStatEx.dwMemoryLoad );
+   fprintf( stderr ,"Windows Memory free:\t%lld\t%2ld%%\n\n" ,memStatEx.ullAvailPhys ,100-memStatEx.dwMemoryLoad );
    #endif
 }
+#endif
 
 // substr() :  Return a portion of a string from source "src" starting at position "pos" for the length of "len".
 //             Copied from http://www.programmingsimplified.com/c/source-code/c-substring
@@ -542,9 +578,9 @@ char *substr( const char *src ,const int pos ,const int len )
 static    inline     // ISO C99
 char *substrdecode( const char *src ,const int pos ,const int len ,const unsigned char pCharEncoding )
 {
-   register int   i,j,k;
+   register int   i,k;
    register
-   unsigned char  c;
+   unsigned char  c = '\0';
    register
    unsigned short pos1,pos2;
    char          *txtVal;
@@ -716,7 +752,7 @@ char  *getVTableDDL(  sqlite3_vtab *pVTable  )
    }
 
    strMax=((strMax/3)+1)*3;   // Round up to the next increment of 3 spaces.
-   // Init the string format for the column defintion to be printed out in.
+   // Init the string format for the column definition to be printed out in.
    colFmt=  sqlite3_mprintf("%c%c,%%-%ds%%-6s%%s" ,10 ,9 ,strMax );
 
    for( i = 0 ; i < tfrTable->dsa->fieldCount ; i++ )
@@ -828,7 +864,7 @@ char  *getVTableDDL(  sqlite3_vtab *pVTable  )
 #define  TOKEN_IGNORE         75
 #endif
 
-static   char  DEBUG_ = 0;
+//static   char  DEBUG_ = 0;
 
 static   unsigned
 char  tfrTokenizer( const char *pzStr ,unsigned short *pTokenLen )
@@ -1006,24 +1042,24 @@ char  tfrGetTokenID( const char *pzStr ,unsigned short *pStartPos ,unsigned shor
 static int
 tfrInitDSA( DatasetAttr *dsa ,char *pzStr ,char *pzErrMsg )
 {
-            int   i,rc        =  SQLITE_OK;
+            int   rc          =  SQLITE_OK;
             char *vzStr       =  pzStr;
             char *vToken      =  NULL;
             char *vTmp        =  NULL;
    unsigned char  vTokenID    =  TOKEN_NONE;
    unsigned char  vTokenTmp   =  TOKEN_NONE; // Temp token
-   unsigned char  vSyntxSeg   =  TOKEN_NONE; // Current syntax segment
-   unsigned short vInputLen   =  0;
-   unsigned short vInputPos   =  0;
+// unsigned char  vSyntxSeg   =  TOKEN_NONE; // Current syntax segment
+// unsigned short vInputLen   =  0;
+// unsigned short vInputPos   =  0;
    unsigned short vTokenLen   =  0;
    unsigned short vTokenPos   =  0;
-   unsigned short vErrorPos   =  0;
-   unsigned short vPrevPos    =  0;
+// unsigned short vErrorPos   =  0;
+// unsigned short vPrevPos    =  0;
    // Look ahead one token for a LITERAL that MUST be "PERFILE".
    unsigned short vLen        =  0;
    unsigned short vPos        =  0;
 
-   vInputLen   =  strlen(pzStr);
+// vInputLen   =  strlen(pzStr);
 
    // Set the default.
    dsa->bufferSize      =  TFR_FILEBUFSIZE;
@@ -1055,7 +1091,7 @@ tfrInitDSA( DatasetAttr *dsa ,char *pzStr ,char *pzErrMsg )
                }
                break;
          case  TOKEN_HEADER:
-               vSyntxSeg=  vTokenID;
+//             vSyntxSeg=  vTokenID;
                vTokenID =  tfrGetTokenID( vzStr ,&vTokenPos ,&vTokenLen);
 
                switch ( vTokenID )
@@ -1160,7 +1196,7 @@ tfrInitDSA( DatasetAttr *dsa ,char *pzStr ,char *pzErrMsg )
 #endif
                break;
          case  TOKEN_SKIP:
-               vSyntxSeg=  vTokenID;
+//             vSyntxSeg=  vTokenID;
                vTokenID =  tfrGetTokenID( vzStr ,&vTokenPos ,&vTokenLen);
 
                switch ( vTokenID )
@@ -1201,7 +1237,7 @@ tfrInitDSA( DatasetAttr *dsa ,char *pzStr ,char *pzErrMsg )
                }
                break;
          case  TOKEN_ORDERED:
-               vSyntxSeg=  vTokenID;
+//             vSyntxSeg=  vTokenID;
                vTokenID =  tfrGetTokenID( vzStr ,&vTokenPos ,&vTokenLen);
 
                switch ( vTokenID )
@@ -1229,7 +1265,7 @@ tfrInitDSA( DatasetAttr *dsa ,char *pzStr ,char *pzErrMsg )
                }
                break;
          case  TOKEN_CHARSET:
-               vSyntxSeg=  vTokenID;
+//             vSyntxSeg=  vTokenID;
                vTokenID =  tfrGetTokenID( vzStr ,&vTokenPos ,&vTokenLen);
 
                switch ( vTokenID )
@@ -1247,7 +1283,7 @@ tfrInitDSA( DatasetAttr *dsa ,char *pzStr ,char *pzErrMsg )
                }
                break;
          case  TOKEN_ENCODING:
-               vSyntxSeg=  vTokenID;
+//             vSyntxSeg=  vTokenID;
                vTokenID =  tfrGetTokenID( vzStr ,&vTokenPos ,&vTokenLen);
                switch ( vTokenID )
                {
@@ -1271,7 +1307,7 @@ tfrInitDSA( DatasetAttr *dsa ,char *pzStr ,char *pzErrMsg )
                }
                break;
          case  TOKEN_BYTEORDER:
-               vSyntxSeg=  vTokenID;
+//             vSyntxSeg=  vTokenID;
                vTokenID =  tfrGetTokenID( vzStr ,&vTokenPos ,&vTokenLen);
                switch ( vTokenID )
                {
@@ -1288,7 +1324,7 @@ tfrInitDSA( DatasetAttr *dsa ,char *pzStr ,char *pzErrMsg )
                }
                break;
          case  TOKEN_BUFFERSIZE:
-               vSyntxSeg=  vTokenID;
+//             vSyntxSeg=  vTokenID;
                vTokenID =  tfrGetTokenID( vzStr ,&vTokenPos ,&vTokenLen);
                switch ( vTokenID )
                {
@@ -1368,18 +1404,18 @@ tfrInitDSA( DatasetAttr *dsa ,char *pzStr ,char *pzErrMsg )
 static int
 tfrInitField( FieldAttr *fieldAttr ,char *pzStr ,char *pzErrMsg )
 {
-            int   i,rc        =  SQLITE_OK;
+            int   rc          =  SQLITE_OK;
             char *vzStr       =  pzStr;
             char *vToken      =  NULL;
             char *vTmp        =  NULL;
    unsigned char  vTokenID    =  TOKEN_NONE;
-   unsigned char  vSyntxSeg   =  TOKEN_NONE; // Current syntax segment
+// unsigned char  vSyntxSeg   =  TOKEN_NONE; // Current syntax segment
    unsigned short vTokenLen   =  0;
    unsigned short vTokenPos   =  0;
-   unsigned short vErrorPos   =  0;
-   unsigned short vPrevPos    =  0;
+// unsigned short vErrorPos   =  0;
+// unsigned short vPrevPos    =  0;
 
-   Mapping        mapping;
+// Mapping        mapping;
 
    // Set the default.
    fieldAttr->dataType  =  SQLITE_TEXT;
@@ -1460,7 +1496,7 @@ tfrInitField( FieldAttr *fieldAttr ,char *pzStr ,char *pzErrMsg )
          case  TOKEN_OPTIONALLY:
                break;
          case  TOKEN_ENCLOSED:
-               vSyntxSeg=  vTokenID;
+//             vSyntxSeg=  vTokenID;
                vTokenID =  tfrGetTokenID( vzStr ,&vTokenPos ,&vTokenLen);
 
                switch ( vTokenID )
@@ -1657,7 +1693,7 @@ tfrInitField( FieldAttr *fieldAttr ,char *pzStr ,char *pzErrMsg )
                }
                break;
          case  TOKEN_ENCODING:
-               vSyntxSeg=  vTokenID;
+//             vSyntxSeg=  vTokenID;
                vTokenID =  tfrGetTokenID( vzStr ,&vTokenPos ,&vTokenLen);
                switch ( vTokenID )
                {
@@ -1810,10 +1846,10 @@ tfrInitField( FieldAttr *fieldAttr ,char *pzStr ,char *pzErrMsg )
 static
 int   setFileAttribute( FileAttr *pFileAttr ,const  char *pFullPathName ,char *pzErrMsg )
 {
-   int      i,rc = EXIT_SUCCESS;
-   int      strLen   = 0;
-   int      strMrk   = 0;
-   char     modifiedOn[32];
+   int      rc = EXIT_SUCCESS;
+// int      strLen   =  0;
+// int      strMrk   =  0;
+   char     modifiedOn[ 32 ];
    char    *tmpValue =  NULL;
    char     strValue[   PATH_MAX   ];
    struct   stat  fileStatus;
@@ -1884,7 +1920,7 @@ FileAttr *newFileAttribute( char *pFullpathname ,char *pzErrMsg )
 static
 int   appendGlobListToCursor( CursorCtrl *pCursorCtrl ,glob_t *globBuf ,char *pzErrMsg )
 {
-   int   i,j;
+   int   i;
    int   rc =  EXIT_SUCCESS;
 
    for( i = 0 ; i < globBuf->gl_pathc && EXIT_SUCCESS == rc ; i++ )
@@ -1981,7 +2017,7 @@ static
 DatasetAttr *setDataSetAttr( DatasetAttr *dsa ,const int pArgc ,const char * const *pArgv ,char *pzErrMsg )
 {
    DEBUG_APITRACE("In    setDataSetAttr() ...\n");
-   int   i,j,rc=  SQLITE_OK;
+   int   i,rc  =  SQLITE_OK;
    pzErrMsg    =  NULL;
 
    memset( dsa ,'\0' ,sizeof(DatasetAttr));  // Initialize the structure to NULL.
@@ -2129,7 +2165,7 @@ static
 CursorCtrl  *newCursorCtrl(   DatasetAttr *pDsa ,char *pzErrMsg )
 {
    DEBUG_APITRACE("In    newCursorCtrl() ...\n");
-   int         i, j, rc    =  SQLITE_NOMEM;
+   int i,rc =  SQLITE_NOMEM;
 
    pzErrMsg =  NULL;
    CursorCtrl *pCursorCtrl =  sqlite3_malloc(sizeof(CursorCtrl));
@@ -2219,7 +2255,7 @@ unsigned
 short parseOutRecord( sqlite3_vtab_cursor *pVTabCur )
 {
    DEBUG_APITRACE("In    parseOutRecord() ...\n");
-   register int   i,j   =  0;
+   register int   i     =  0;
    register
    unsigned char  isEOR =  0; // End of Record.
    register
@@ -2237,7 +2273,7 @@ short parseOutRecord( sqlite3_vtab_cursor *pVTabCur )
    unsigned char  recDelLen;  // Record delimiter length.
    register
    unsigned char  recDelPos;  // Record delimiter position.
-   unsigned char  subDelLen;  // Sub-Delimiter length.
+// unsigned char  subDelLen;  // Sub-Delimiter length.
    unsigned char  subDelPos;  // Sub-Delimiter position.
    unsigned char  lftEncLen;  // Enclosure left  length.
    unsigned char  lftEncPos;  // Enclosure left  position.
@@ -2247,7 +2283,7 @@ short parseOutRecord( sqlite3_vtab_cursor *pVTabCur )
             char *lftEnc;     // Left  enclosure string pattern.
             char *rgtEnc;     // Right enclosure string pattern.
             char *fldDel;     // Field  delimeter.
-            char *subDel;     // Field  sub-delimeter.
+//          char *subDel;     // Field  sub-delimeter.
             char *recDel;     // Record delimeter.
 
    // Alias them.
@@ -2272,8 +2308,8 @@ short parseOutRecord( sqlite3_vtab_cursor *pVTabCur )
    rgtEncLen=  currField->rightEncloseLen;
    fldDel   =  currField->delimiter;
    fldDelLen=  currField->delimiterLen;
-   subDel   =  currField->subDelimiter;
-   subDelLen=  currField->subDelimiterLen;
+// subDel   =  currField->subDelimiter;
+// subDelLen=  currField->subDelimiterLen;
    recDel   = fields[dsa->fieldCount -1].delimiter;     // The last field.
    recDelLen= fields[dsa->fieldCount -1].delimiterLen;  // The last field.
 
@@ -2404,8 +2440,8 @@ short parseOutRecord( sqlite3_vtab_cursor *pVTabCur )
          fldDel   =  currField->delimiter;
          fldDelLen=  currField->delimiterLen;
          fldDelPos=  0;
-         subDel   =  currField->subDelimiter;
-         subDelLen=  currField->subDelimiterLen;
+//       subDel   =  currField->subDelimiter;
+//       subDelLen=  currField->subDelimiterLen;
          subDelPos=  0;
       }else{ // Still have NOT hit any of the "end of" markers.
          if(TFR_VISIBILITY_IGNORE != currField->visibility
@@ -2421,7 +2457,7 @@ short parseOutRecord( sqlite3_vtab_cursor *pVTabCur )
                cursorCtrl->recBuffer    =(char *)  sqlite3_realloc( cursorCtrl->recBuffer ,cursorCtrl->recBufferLen );
 
 //             sqlite3_log(SQLITE_NOTICE ,"WARNING: Record# %d increased record buffer by 1024 bytes for field#%d\n"  ,(cursorCtrl->recNumber+1) ,cursorCtrl->currField);
-               fprintf(    stderr        ,"WARNING: Record# %d increased record buffer by 1024 bytes for field#%d\n"  ,(cursorCtrl->recNumber+1) ,cursorCtrl->currField);
+               fprintf(    stderr        ,"WARNING: Record# %lld increased record buffer by 1024 bytes for field#%d\n"  ,(cursorCtrl->recNumber+1) ,cursorCtrl->currField);
             }
 
             // Copy one byte onto the record buffer pointed by the current field in the buffer control.
@@ -2552,7 +2588,7 @@ int   getNextRecord( sqlite3_vtab_cursor *pVTabCur )
 static    inline     // ISO C99
 MemValue *setMemValue( MemValue *pMemValue ,const TfrCursor *pTfrCursor ,const int pColID ,const unsigned char pUseSqlite3Free )
 {
-   register    int   i,j,k;
+   register    int   i;
    unsigned    short fldPos;
    unsigned    short fldLen;
    // Alias them.
@@ -2685,7 +2721,7 @@ int   xConnect( sqlite3 *db ,void *pAux ,int pArgc ,const char * const *pArgv ,s
 {
    DEBUG_APITRACE("In   xConnect() ...\n");
 
-   int   i ,j ,k ,rc    =  SQLITE_OK;
+   int   rc =  SQLITE_OK;
    TfrTable   *tfrTable =  NULL;
               *ppVTable =  NULL;
 
@@ -2777,8 +2813,8 @@ static
 int   xRename(  sqlite3_vtab *pVTable ,const char *pzNewName )
 {
    DEBUG_APITRACE("In   xRename() ...\n");
-   TfrTable   *tfrTable = (TfrTable *)pVTable;
-
+   // TfrTable   *tfrTable = (TfrTable *)pVTable;
+   // TODO: Implement this.
 
    DEBUG_APITRACE("Done xRename() ...\n");
    return   SQLITE_OK;
@@ -2957,7 +2993,8 @@ int   xBestIndex( sqlite3_vtab *pVTable ,sqlite3_index_info *pIdxInfo )
 {
    DEBUG_APITRACE("In   xBestIndex() ...\n");
 
-   TfrTable   *tfrTable  = (TfrTable *)pVTable;
+   // TfrTable   *tfrTable  = (TfrTable *)pVTable;
+   // TODO: Implement this.
 
    DEBUG_APITRACE("Done xBestIndex() ...\n");
    return   SQLITE_OK;
@@ -3019,7 +3056,7 @@ static   sqlite3_module tfrModule = {
 //
 int   tfr_init(sqlite3 *db ,char **ppzErrMsg ,const sqlite3_api_routines *pApi )
 {
-      int    i;
+      //int    i;
       char  *moduleName =  substr(__FILE__ ,0 ,strlen(__FILE__)-2 );
 
       SQLITE_EXTENSION_INIT2( pApi );
