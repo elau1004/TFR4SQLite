@@ -1,20 +1,24 @@
-# ========================================================
-# Makefile: Explicit compilation of shell.c, glob.c, tfr.c
-# ========================================================
-
-# ----------------------------
-# Build type (debug/release)
-# ----------------------------
+# =========================================================
+# Cross-Platform Makefile: Linux GCC / MinGW-w64
+# =========================================================
+# Project layout:
+# inc/                 → public headers
+# src/lib/             → reusable library (tfr.c, glob.c)
+# src/main/            → main program (shell.c, sqlite3.c)
+# build/{debug,release}/
+# =========================================================
+# Usage: make BUILD_TYPE=[debug|release]
 BUILD_TYPE ?= release
 
 # ----------------------------
 # Compiler and base flags
 # ----------------------------
-CC      = gcc
-CFLAGS  = -Wall -Iinc
+CC      := gcc
+CFLAGS  := -Wall -Iinc
+LDFLAGS := 
 
 ifeq ($(BUILD_TYPE),debug)
-    CFLAGS += -g
+    CFLAGS += -g -DDEBUG
 else
     CFLAGS += -O2
 endif
@@ -22,124 +26,111 @@ endif
 # ----------------------------
 # Directories
 # ----------------------------
-SRC_DIR     = src
-LIB_DIR     = $(SRC_DIR)/lib
-MAIN_DIR    = $(SRC_DIR)/main
-TEST_DIR    = $(SRC_DIR)/test
-BUILD_ROOT  = build
-BUILD_DIR   = $(BUILD_ROOT)/$(BUILD_TYPE)
+SRC_DIR   	:= src
+LIB_DIR     := $(SRC_DIR)/lib
+MAIN_DIR    := $(SRC_DIR)/main
+TEST_DIR    := $(SRC_DIR)/test
+BUILD_ROOT  := build
+BUILD_DIR   := $(BUILD_ROOT)/$(BUILD_TYPE)
 
 # ----------------------------
 # OS detection
 # ----------------------------
 ifeq ($(OS),Windows_NT)
-    LIB_EXT      = .dll
-    EXE_EXT      = .exe
-    SHARED_FLAGS = -shared
-    RM           = rm -rf
-    MKDIR_P      = mkdir -p
+    LIB_EXT      	:= .dll
+    EXE_EXT      	:= .exe
+    SHARED_FLAGS 	:= -shared
+    RM           	:= rm -rf
+    MKDIR_P      	:= mkdir -p
+    SHELL_LDFLAGS	:=  # Windows: dl/m math not needed
 else
-    LIB_EXT      = .so
-    EXE_EXT      =
-    SHARED_FLAGS = -fPIC -shared
-    RM           = rm -rf
-    MKDIR_P      = mkdir -p
+    LIB_EXT      	:= .so
+    EXE_EXT      	:=
+    SHARED_FLAGS 	:= -fPIC -shared
+    RM           	:= rm -rf
+    MKDIR_P      	:= mkdir -p
+    SHELL_LDFLAGS 	:= -ldl -lm
 endif
 
 # ----------------------------
 # Output targets
 # ----------------------------
-LIB_NAME   = $(BUILD_DIR)/tfr$(LIB_EXT)
-MAIN_BIN   = $(BUILD_DIR)/shell$(EXE_EXT)
+LIB_NAME   := $(BUILD_DIR)/tfr$(LIB_EXT)
+MAIN_BIN   := $(BUILD_DIR)/shell$(EXE_EXT)
 
 # ----------------------------
-# Unit test sources
+# Source files
 # ----------------------------
-TEST_SRCS  := $(wildcard $(TEST_DIR)/*.c)
-TEST_OBJS  := $(patsubst $(TEST_DIR)/%.c,$(BUILD_DIR)/%.o,$(TEST_SRCS))
-TEST_BINS  := $(patsubst $(TEST_DIR)/%.c,$(BUILD_DIR)/%$(EXE_EXT),$(TEST_SRCS))
+GLOB_SRC   := $(LIB_DIR)/glob.c
+TFR_SRC    := $(LIB_DIR)/tfr.c
+SHELL_SRC  := $(MAIN_DIR)/shell.c
+SQLITE_SRC := $(MAIN_DIR)/sqlite3.c
+
+# ----------------------------
+# Object files
+# ----------------------------
+GLOB_OBJ   := $(BUILD_DIR)/glob.o
+TFR_OBJ    := $(BUILD_DIR)/tfr.o
+SHELL_OBJ  := $(BUILD_DIR)/shell.o
+SQLITE_OBJ := $(BUILD_DIR)/sqlite3.o
 
 # ----------------------------
 # Default target
 # ----------------------------
-all: $(LIB_NAME) $(MAIN_BIN) $(TEST_BINS)
-	@echo "Build type: $(BUILD_TYPE)"
-	@echo "All targets built in $(BUILD_DIR)"
+all: $(BUILD_DIR) $(LIB_NAME) $(MAIN_BIN)
 
 # ========================================================
-# Compile glob.c (library helper)
+# Create build directory
 # ========================================================
-$(BUILD_DIR)/glob.o: $(LIB_DIR)/glob.c
-	@$(MKDIR_P) $(BUILD_DIR)
-	# $@ = build/debug/glob.o
-	# $< = src/lib/glob.c
+$(BUILD_DIR):
+	@$(MKDIR_P) $@
+
+# ========================================================
+# Compile glob.c (only on Windows)
+# ========================================================
+ifeq ($(OS),Windows_NT)
+$(GLOB_OBJ): $(GLOB_SRC) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+	@echo "Compiled: $< → $@"
+endif
+
+# ========================================================
+# Compile tfr.c as shared library
+# ========================================================
+$(TFR_OBJ): $(TFR_SRC) $(GLOB_OBJ)
 	$(CC) $(CFLAGS) -c $< -o $@
 	@echo "Compiled: $< → $@"
 
-# ========================================================
-# Compile tfr.c (depends on glob.c)
-# ========================================================
-$(BUILD_DIR)/tfr.o: $(LIB_DIR)/tfr.c $(BUILD_DIR)/glob.o
-	@$(MKDIR_P) $(BUILD_DIR)
-	# Include glob.o dependency
-	$(CC) $(CFLAGS) -c $< -o $@
-	@echo "Compiled: $< → $@"
-
-# ========================================================
-# Build shared library (tfr.dll / tfr.so)
-# ========================================================
-$(LIB_NAME): $(BUILD_DIR)/glob.o $(BUILD_DIR)/tfr.o
-	@$(MKDIR_P) $(BUILD_DIR)
-	# $@ = build/debug/tfr.dll or tfr.so
-	# $^ = glob.o tfr.o
-	$(CC) $(SHARED_FLAGS) -o $@ $^
+$(LIB_NAME): $(TFR_OBJ)
+ifeq ($(OS),Windows_NT)
+	$(CC) $(SHARED_FLAGS) -o $@ $(TFR_OBJ) $(GLOB_OBJ)
+else
+	$(CC) $(SHARED_FLAGS) -o $@ $(TFR_OBJ)
+endif
 	@echo "Built shared library: $@"
 
 # ========================================================
-# Compile shell.c (main program)
+# Compile shell.c and sqlite3.c
 # ========================================================
-$(BUILD_DIR)/shell.o: $(MAIN_DIR)/shell.c
-	@$(MKDIR_P) $(BUILD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+$(SQLITE_OBJ): $(SQLITE_SRC) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Wno-unused-variable -DSQLITE_THREADSAFE=0 -c $< -o $@
+	@echo "Compiled: $< → $@"
+
+$(SHELL_OBJ): $(SHELL_SRC) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -Wno-unused-variable -DSQLITE_THREADSAFE=0 -c $< -o $@
 	@echo "Compiled: $< → $@"
 
 # ========================================================
 # Link shell executable
 # ========================================================
-$(MAIN_BIN): $(BUILD_DIR)/shell.o $(LIB_NAME)
-	@$(MKDIR_P) $(BUILD_DIR)
-ifeq ($(OS),Windows_NT)
-	# Windows: link directly with DLL
-	$(CC) $^ -o $@
-else
-	# Linux: link with shared library
-	$(CC) $^ -L$(BUILD_DIR) -ltfr -o $@
-endif
+$(MAIN_BIN): $(SHELL_OBJ) $(SQLITE_OBJ)
+	$(CC) $^ $(SHELL_LDFLAGS) -o $@
 	@echo "Built main program: $@"
 
 # ========================================================
-# Unit test compilation
-# ========================================================
-$(BUILD_DIR)/%.o: $(TEST_DIR)/%.c
-	@$(MKDIR_P) $(BUILD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
-	@echo "Compiled test: $< → $@"
-
-$(BUILD_DIR)/%$(EXE_EXT): $(BUILD_DIR)/%.o $(LIB_NAME)
-ifeq ($(OS),Windows_NT)
-	$(CC) $^ -o $@
-else
-	$(CC) $^ -L$(BUILD_DIR) -ltfr -o $@
-endif
-	@echo "Built test executable: $@"
-
-# ========================================================
-# Clean all artifacts
+# Clean
 # ========================================================
 clean:
 	$(RM) $(BUILD_ROOT)
 
-# ========================================================
-# Phony targets
-# ========================================================
 .PHONY: all clean
